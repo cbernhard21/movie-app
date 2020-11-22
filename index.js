@@ -1,77 +1,63 @@
-const fetchData = async searchTerm => {
-    const response = await axios.get('https://www.omdbapi.com/', {
-        params: {
-            apikey: 'd9835cc5',
-            s: searchTerm
-        }
-    });
-
-    if (response.data.Error) {
-        return [];
-    }
-
-    return response.data.Search;
-};
-
-const root = document.querySelector('.autocomplete');
-root.innerHTML = `
-  <label><b>Search For A Movie</b></label>
-  <input class="input" />
-  <div class="dropdown">
-    <div class="dropdown-menu">
-      <div class="dropdown-content results"></div>
-    </div>
-  </div>
-`;
-
-const input = document.querySelector('input');
-const dropdown = document.querySelector('.dropdown');
-const resultsWrapper = document.querySelector('.results');
-
-const onInput = async event => {
-    const movies = await fetchData(event.target.value);
-
-    if (!movies.length) {
-        dropdown.classList.remove('is-active');
-        return;
-    }
-
-    resultsWrapper.innerHTML = '';
-    dropdown.classList.add('is-active');
-    for (let movie of movies) {
-        const option = document.createElement('a');
+const autoCompleteConfig = {
+    //how to show an individual item
+    renderOption(movie) {
         const imgSrc = movie.Poster === 'N/A' ? '' : movie.Poster;
+        return `
+            <img src="${imgSrc}" />
+            ${movie.Title} (${movie.Year})
+        `
+    },
 
-        option.classList.add('dropdown-item');
-        option.innerHTML = `
-      <img src="${imgSrc}" />
-      ${movie.Title}
-  `;
-        option.addEventListener('click', () => {
-            dropdown.classList.remove('is-active');
-            input.value = movie.Title;
-            onMovieSelect(movie);
+    //what to fill input field after click
+    inputValue(movie) {
+        return movie.Title;
+    },
+    //how to fetch the data
+    async fetchData(searchTerm) {
+        const response = await axios.get('https://www.omdbapi.com/', {
+            params: {
+                apikey: 'd9835cc5',
+                s: searchTerm
+            }
         });
 
-        resultsWrapper.appendChild(option);
+        if (response.data.Error) {
+            return [];
+        }
+        return response.data.Search;
     }
-};
-input.addEventListener('input', debounce(onInput, 500));
+}
 
-document.addEventListener('click', event => {
-    if (!root.contains(event.target)) {
-        dropdown.classList.remove('is-active');
+createAutoComplete({
+    ...autoCompleteConfig,
+    //where to render the autocomplete
+    root: document.querySelector('#left-autocomplete'),
+    //what to do when user clicks on one
+    onOptionSelect(movie) {
+        document.querySelector('.tutorial').classList.add('is-hidden');
+        onMovieSelect(movie, document.querySelector('#left-summary'));
     }
 });
 
-const onMovieSelect = async movie => {
+createAutoComplete({
+    ...autoCompleteConfig,
+    //where to render the autocomplete
+    root: document.querySelector('#right-autocomplete'),
+    //what to do when user clicks on one
+    onOptionSelect(movie) {
+        document.querySelector('.tutorial').classList.add('is-hidden');
+        onMovieSelect(movie, document.querySelector('#right-summary'));
+    }
+});
+
+const onMovieSelect = async(movie, summaryElement) => {
     const response = await axios.get('https://www.omdbapi.com/', {
         params: {
             apikey: 'd9835cc5',
             i: movie.imdbID
         }
     });
-    document.querySelector('#summary').innerHTML = movieTemplate(response.data);
+    summaryElement.innerHTML = movieTemplate(response.data);
 }
 
 const movieTemplate = movieDetail => {
